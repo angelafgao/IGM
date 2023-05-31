@@ -3,11 +3,17 @@
 ![overview image](https://github.com/angelafgao/igm/blob/main/mnistdenoising64.png)
 
 ## Run examples
-Example command line examples are in ```test_scripts.sh```. 
+For model selection examples, see TBD.
+
+For joint inference for image reconstruction posteriors and IGMs, see ```test_scripts.sh```. There are examples for the denoising example above as well as examples for denoising celebrity faces and black hole compressed sensing.
 
 ## Dependencies
 General requirements for PyTorch release:
 * [pytorch](https://pytorch.org/)
+
+Follow this [installation guide ](https://github.com/tianweiy/SeqMRI/blob/main/docs/INSTALL.md) to build the singularity container to run these scripts.
+
+You will need to install [ehtim](https://achael.github.io/eht-imaging/) as well as [ehtplot](https://github.com/liamedeiros/ehtplot) for visualizing the black hole examples.
 
 ## Citations
 ```
