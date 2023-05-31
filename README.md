@@ -1,14 +1,15 @@
 # Ill-Posed Image Reconstruction without an Explicit Image Prior
 
-Oscar Leong*,   Angela F. Gao*,   He Sun    Katherine L. Bouman
-
 ![overview image](https://github.com/angelafgao/igm/blob/main/mnistdenoising64.png)
 
-## Requirements
+## Run examples
+Example command line examples are in ```test_scripts.sh```. 
+
+## Dependencies
 General requirements for PyTorch release:
 * [pytorch](https://pytorch.org/)
 
-## Citation
+## Citations
 ```
 @inproceedings{gao2023image,
   title={Image Reconstruction without Explicit Priors},
