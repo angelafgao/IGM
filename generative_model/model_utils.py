@@ -25,7 +25,7 @@ def get_stylegan(latent_dim, depth):
     generator = stylegan_networks.StyledGenerator(latent_dim, depth, 5).to(device)
     return generator
 
-def get_deep_decoder(image_size, latent_dim, dropout_val, layer_size, num_layer_decoder=6):
+def get_deep_decoder(image_size, latent_dim, dropout_val, layer_size, num_layer_decoder=6, **kwargs):
     in_size = (4,4)
     out_size = (image_size, image_size)
     output_depth = 1
@@ -38,8 +38,19 @@ def get_deep_decoder(image_size, latent_dim, dropout_val, layer_size, num_layer_
                             num_channels=num_channels,
                             need_sigmoid=True,
                             last_noup=False,
-                            dropout_val = dropout_val).type(dtype).to(device)
+                            dropout_val = dropout_val,
+                            **kwargs).type(dtype).to(device)
     return generator
+
+
+def get_conv_decoder(image_size, latent_dim, dropout_val, layer_size,
+                     num_layer_decoder=6, **kwargs):
+    return get_deep_decoder(image_size, latent_dim, dropout_val, layer_size,
+                            num_layer_decoder=num_layer_decoder,
+                            filter_size=3,
+                            upsample_mode='nearest',
+                            **kwargs)
+
 
 def get_generator(latent_dim, image_size, generator_type):
     if generator_type == 'stylegan':
@@ -55,7 +66,14 @@ def get_generator(latent_dim, image_size, generator_type):
         generator = get_deep_decoder(image_size, latent_dim, dropout_val, layer_size, num_layer_decoder)
         G = lambda z: generator(z)
         return generator, G
-    elif generator_type == 'vae':   
+    elif generator_type == 'convdecoder':
+        dropout_val = 1e-4
+        layer_size = 150
+        num_layer_decoder = 6
+        generator = get_conv_decoder(image_size, latent_dim, dropout_val, layer_size, num_layer_decoder)
+        G = lambda z: generator(z)
+        return generator, G
+    elif generator_type == 'vae':
         generator = vae.ConvVAE(latent_dim).to(device)
         G = lambda z: generator.decode(z)
         return generator, G
@@ -69,6 +87,8 @@ def get_generator(latent_dim, image_size, generator_type):
         generator = get_flow_model(latent_dim, n_flow, affine, seqfrac, permute, batch_norm, use_dropout)
         G = lambda z: flow_results_with_sigmoid(generator, z)
         return generator, G
+    else:
+        raise ValueError('invalid generator_type')
     
     
 def flow_results_with_sigmoid(generator, z):
