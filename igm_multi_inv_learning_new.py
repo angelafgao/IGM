@@ -1,3 +1,6 @@
+import os
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+
 # -*- coding: utf-8 -*-
 """IGM_learning.ipynb
 
@@ -21,7 +24,6 @@ from torchvision import datasets, transforms
 from torchvision.utils import save_image
 import matplotlib.pyplot as plt
 import matplotlib
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 from torch.autograd import Variable
 
 torch.set_default_dtype(torch.float32)
@@ -51,9 +53,11 @@ def main_function(args):
         sigmas = [args.sigma_den, args.sigma_cs]
     elif 'multi' in args.task and 'phase-retrieval' in args.task:
         sigmas = [args.sigma_den, args.sigma_pr]
+    elif 'closure-phase' in args.task:
+        sigmas = [args.sigma, args.sigma_cp]
     else:
         sigmas = args.sigma
-    print("noise level(s): {0}".format(sigmas))
+    # print("noise level(s): {0}".format(sigmas))
     true, noisy, A, sigma, kernels = data_utils.get_true_and_noisy_data(image_size=args.image_size,
                                  sigma=sigmas,
                                  num_imgs_total=args.num_imgs,
@@ -61,7 +65,9 @@ def main_function(args):
                                  class_idx=args.class_idx,
                                  task=args.task,
                                  objective=args.objective,
-                                 front_facing=args.front_facing)
+                                 front_facing=args.front_facing,
+                                 cphase_count=args.cphase_count,
+                                 envelope_params=args.envelope)
     
     # Get generator:
     # - generator = neural network params
@@ -78,7 +84,7 @@ def main_function(args):
                                           generator_func=G,
                                           generator_type=args.generator_type,
                                           lr=args.lr,
-                                          sigma=sigmas,
+                                          sigma=sigma,
                                           targets=noisy,
                                           true_imgs=true,
                                           num_samples=args.num_samples,
@@ -102,7 +108,15 @@ def main_function(args):
                                           image_size=args.image_size,
                                           num_channels=args.num_channels,
                                           no_entropy=args.no_entropy, 
-                                          eps_fixed = args.eps_fixed)
+                                          eps_fixed = args.eps_fixed,
+                                          gamma=args.gamma,
+                                          cphase_anneal=args.cphase_anneal,
+                                          cphase_scale=args.cphase_scale,
+                                          envelope_params=args.envelope,
+                                          centroid_params=args.centroid,
+                                          locshift_params=args.locshift,
+                                          from_checkpoint=args.from_checkpoint,
+                                          validate_args=args.validate_args)
 
 
 
@@ -122,7 +136,9 @@ if __name__ == "__main__":
             help='noise std (default: sqrt(0.1))')
     parser.add_argument('--sigma_pr', type=float, default=0.31622776601, metavar='N',
             help='noise std (default: sqrt(0.1))')
-    
+    parser.add_argument('--sigma_cp', type=float, default=None, metavar='N',
+            help='closure phase noise std (default: None)')
+
     # optimization params
     parser.add_argument('--lr', type=float, default=1e-4, metavar='N',
             help='learning rate (default: 1e-4)')
@@ -170,7 +186,30 @@ if __name__ == "__main__":
             help='inverse problem to solve (default: denoising)')
     parser.add_argument('--objective', type=str, default='learning', metavar='N',
             help='either learn prior or perform model selection (default: learning)')
-    
+
+    # closure phase problem params
+    parser.add_argument('--gamma', type=float, default=0.001, metavar='N',
+                        help='cphase loss = gamma * loss_mag + len(meas_mag) / len(meas_phase) * loss_phase '
+                             '(default: 0.001)')
+    parser.add_argument('--cphase_count', type=str, default='min-cut0bl',
+                        help='number of closure phases ("min", "max", or "min-cut0bl", '
+                             'default: "min-cut0bl")')
+    parser.add_argument('--cphase_anneal', type=int, default=None, metavar='N',
+                        help='if >0, epoch at which to begin annealing the phase portion of the loss '
+                             '(default: None)')
+    parser.add_argument('--cphase_scale', type=float, default=1, metavar='N',
+                        help='multiply the phase portion of loss by this amount '
+                             '(default: 1)')
+    parser.add_argument('--envelope', nargs=3, default=None, metavar=('etype', 'ds1', 'ds2'),
+                        help='type (either "sq" or "circ") and params of envelope to encourage '
+                             'centering, if desired (default: None)')
+    parser.add_argument('--centroid', nargs='*', default=None, metavar=('weight', 'anneal'),
+                        help='weight on centroid loss term to encourage centering, if desired, '
+                             'and epoch at which to start annealing this term (default: None)')
+    parser.add_argument('--locshift', nargs=4, default=None, metavar=('etype', 'ds1', 'ds2', 'learn'),
+                        help='generate centralized image and shift location with convolutions with '
+                             'given envelope params (default: None)')
+
     # other params
     parser.add_argument('--seed', type=int, default=100, metavar='N',
             help='random seed (default: 100)')
@@ -181,10 +220,19 @@ if __name__ == "__main__":
             help='use batch gradient descent (default: False )')
     parser.add_argument('--no_entropy', action='store_true', default=False,
             help='no entropy for loss (default: False )')
+    parser.add_argument('--from_checkpoint', action='store_true', default=False,
+                        help='continue training from latest checkpoint, instead of from epoch 0'
+                             '(default: False)')
+    parser.add_argument('--validate_args', action='store_true', default=False,
+                        help='value of validate_args for latent distribution in training loop '
+                             '(default: False)')
+    parser.add_argument('--suffix', type=str, default='',
+                        help='string add to end of directory name for hacky reasons '
+                             '(default: "")')
 
     args = parser.parse_args()
 
-
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
@@ -203,7 +251,25 @@ if __name__ == "__main__":
     currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
     parentdir = os.path.dirname(currentdir)
     sys.path.insert(0,parentdir)
-    
+
+    # Process parameters
+    if args.envelope:
+        assert args.envelope[0] == 'sq' or args.envelope[0] == 'circ'
+        args.envelope[1] = int(args.envelope[1])
+        args.envelope[2] = int(args.envelope[2])
+    if args.centroid:
+        assert len(args.centroid) == 1 or len(args.centroid) == 2
+        args.centroid[0] = float(args.centroid[0])
+        if len(args.centroid) == 1:
+            args.centroid.append(None)
+        else:
+            args.centroid[1] = int(float(args.centroid[1]))
+    if args.locshift:
+        assert args.locshift[0] == 'sq' or args.locshift[0] == 'circ'
+        args.locshift[1] = int(args.locshift[1])
+        args.locshift[2] = int(args.locshift[2])
+        assert args.locshift[3] == 'l' or args.locshift[3] == 'nl'
+
      ## Saving parameters
     if args.batchGD == True:
         args.sup_folder = "results_batched"
@@ -221,6 +287,24 @@ if __name__ == "__main__":
         args.folder += f"_{args.eps_fixed}"
     if args.no_entropy==True:
         args.folder += "_no_entropy"
+    if "closure-phase" in args.task:
+        args.folder += f"_gamma{args.gamma}"
+        args.folder += f"_sigma-cp{args.sigma_cp}"
+        args.folder += f"_cphases-{args.cphase_count}"
+        if args.cphase_anneal is not None and args.cphase_anneal > 0:
+            args.folder += f"_cp-anneal{args.cphase_anneal}"
+        if args.cphase_scale != 1:
+                args.folder += f"_cp-scale{args.cphase_scale}"
+        if args.envelope:
+            args.folder += f"_envelope{args.envelope[0]}-{args.envelope[1]}-{args.envelope[2]}"
+        if args.centroid:
+            args.folder += f"_centroid{args.centroid[0]:.0e}-{args.centroid[1]:.0e}"
+        if args.locshift:
+            args.folder += f"_locshift{args.locshift[0]}-{args.locshift[1]}-{args.locshift[2]}-{args.locshift[3]}"
+
+    if args.suffix != '':
+        args.folder += f"_{args.suffix}"
+
     if not os.path.exists(f'./{args.sup_folder}/{args.folder}'):
         os.makedirs(f'./{args.sup_folder}/{args.folder}')
     if not os.path.exists(f'./{args.sup_folder}/{args.folder}/model_checkpoints'):
@@ -229,7 +313,7 @@ if __name__ == "__main__":
     with open("{}/args.json".format(f'./{args.sup_folder}/{args.folder}'), 'w') as f:
         json.dump(args.__dict__, f, indent=2)
     
-    if args.sigma is None:
+    if args.sigma is None and args.dataset in ("m87", "sagA_video"):
         if args.dataset=="sagA_video":
             print("load matrix of sigmas")
             sigma = np.load("./utils/sigma_ngEHT_sagA_video_.5x.npz", allow_pickle=True)

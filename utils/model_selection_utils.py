@@ -137,35 +137,22 @@ def train_flow(generator,
         #    print("Best ELBO: {}".format(BEST_ELBO))
     return BEST_FLOW
 
-def create_confusion_matrix(num_classes, full_ELBO_comp_mat, dataset, task, folder_path):
+def create_confusion_matrix(num_classes, full_ELBO_comp_mat, task, folder_path):
     matplotlib.rcParams.update({'font.size': 24})
-    if dataset == 'MNIST':
-        ELBO_comp_mat = np.zeros((num_classes, num_classes))
-        for i in range(num_classes):
-            ELBO_comp_mat[i,:] = full_ELBO_comp_mat[i,:] / np.amin(full_ELBO_comp_mat[i,:])
-    else:
-        ELBO_comp_mat = np.zeros((1, num_classes))
-        ELBO_comp_mat = full_ELBO_comp_mat / np.amin(full_ELBO_comp_mat)
+    ELBO_comp_mat = np.zeros((num_classes, num_classes))
+    for i in range(num_classes):
+        ELBO_comp_mat[i,:] = full_ELBO_comp_mat[i,:] / np.amin(full_ELBO_comp_mat[i,:])
     ELBO_comp_mat = np.round(ELBO_comp_mat, 3)#np.rint(ELBO_comp_mat)#np.rint(ELBO_comp_mat, 3)
-    if dataset == "MNIST":
-        fig, ax = plt.subplots(1,1, figsize=(18,16))
-    else:
-        fig, ax = plt.subplots(1,1, figsize=(8,2))
+    fig, ax = plt.subplots(1,1, figsize=(18,16))
     im = ax.imshow(ELBO_comp_mat, cmap='Blues', interpolation='nearest')
     ax.set_title('$-\mathrm{ELBOProxy}$ confusion rows for each IGM ($\downarrow$)')
     ax.set_xticklabels([])
     ax.set_yticklabels([])
     ax.axis('off')
-    if dataset == "MNIST":
-        jump_x = (10 - 0) / (2.0 * 10)
-        jump_y = (10 - 0) / (2.0 * 10)
-        x_positions = np.linspace(start=0, stop=10, num=10, endpoint=False)
-        y_positions = np.linspace(start=0, stop=10, num=10, endpoint=False)
-    else:
-        jump_x = (4 - 0) / (2.0 * 4)
-        jump_y = (1 - 0) / (2.0 * 1)
-        x_positions = np.linspace(start=0, stop=4, num=4, endpoint=False)
-        y_positions = np.linspace(start=0, stop=1, num=1, endpoint=False)
+    jump_x = (10 - 0) / (2.0 * 10)
+    jump_y = (10 - 0) / (2.0 * 10)
+    x_positions = np.linspace(start=0, stop=10, num=10, endpoint=False)
+    y_positions = np.linspace(start=0, stop=10, num=10, endpoint=False)
     for y_index, y in enumerate(y_positions):
         for x_index, x in enumerate(x_positions):
             label = int(full_ELBO_comp_mat[y_index, x_index])
@@ -174,7 +161,7 @@ def create_confusion_matrix(num_classes, full_ELBO_comp_mat, dataset, task, fold
             ax.text(text_x, text_y, label, color='black', ha='center', va='center')
     fig.colorbar(im)
     image_format = 'svg' # e.g .png, .svg, etc.
-    image_name = 'model-sel-' + dataset + '-' + task + '-conf-mat.svg'
+    image_name = 'model-sel-MNIST-r2-' + task + '-conf-mat.svg'
     fig.savefig(os.path.join(folder_path, image_name), format=image_format, dpi=800)
 
 def perform_model_selection(num_classes, 

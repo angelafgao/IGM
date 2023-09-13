@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import os,sys,inspect
 
-os.environ['CUDA_VISIBLE_DEVICES'] = "1"
+# os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 from torch.autograd import Variable
 import random
 from torch.utils.data import TensorDataset
@@ -136,10 +136,14 @@ def deepdecoder(
     for i in range(len(num_channels)-2):
         model.add(conv( num_channels[i], num_channels[i+1],  filter_size[i], 1, pad=pad, bias=bias))
         if upsample_mode!='none' and i != len(num_channels)-2:
-            # align_corners: from pytorch.org: if True, the corner pixels of the input and output tensors are aligned, and thus preserving the values at those pixels. Default: False
-            # default seems to work slightly better
-            model.add(nn.Upsample(size=hidden_size[i], mode=upsample_mode,align_corners=False))
-        
+            if upsample_mode == 'nearest':
+                model.add(nn.Upsample(size=hidden_size[i], mode=upsample_mode))
+            else:
+                # align_corners: from pytorch.org: if True, the corner pixels of the input and output tensors are aligned, and thus preserving the values at those pixels. Default: False
+                # default seems to work slightly better
+                model.add(nn.Upsample(size=hidden_size[i], mode=upsample_mode,
+                                      align_corners=False))
+
         if(bn_before_act): 
             model.add(nn.BatchNorm2d( num_channels[i+1] ,affine=bn_affine, track_running_stats=False))
         if act_fun is not None:    
