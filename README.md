@@ -13,7 +13,7 @@ General requirements for PyTorch release:
 
 Follow this [installation guide ](https://github.com/tianweiy/SeqMRI/blob/main/docs/INSTALL.md) to build the singularity container to run these scripts.
 
-You will need to install [ehtim](https://achael.github.io/eht-imaging/) as well as [ehtplot](https://github.com/liamedeiros/ehtplot) for visualizing the black hole examples. For more details on how to create your own measurements and use the ehtim package, see [this tutorial](https://github.com/helloquat/ehtim-tutorial).
+You will need to install [ehtim](https://achael.github.io/eht-imaging/) as well as [ehtplot](https://github.com/liamedeiros/ehtplot) for visualizing the black hole examples. For more details on how to create your own measurements and use the ehtim package, see [this tutorial](https://github.com/yvette256/ehtim-tutorial).
 
 ## Citations
 ```
