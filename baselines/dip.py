@@ -1,7 +1,8 @@
 from __future__ import print_function
 
+import argparse
 import os
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 import ehtplot
 
 # !git clone https://github.com/DmitryUlyanov/deep-image-prior
@@ -37,15 +38,20 @@ sigma_ = sigma/255.
 
 print(torch.__version__)
 
-fname = 'm87'
-task = 'closure-phase'
+parser = argparse.ArgumentParser(description='Deep Image Prior baseline')
+parser.add_argument('--task', type=str, default='closure-phase',
+                    help='inverse problem to solve (default: closure-phase)')
+parser.add_argument('--dataset', type=str, default='m87', help='dataset to use (default: m87)')
+args = parser.parse_args()
+
+fname = args.dataset
+task = args.task
 # task = 'compressed-sensing'
 num_imgs = 60
 curr_cmap = 'afmhot_10us'
 image_size = 64
 cphase_weight = 10
-# centroid_weight = 10
-centroid_weight = 1e5
+centroid_weight = 10
 
 dip_baseline_dir = os.path.join('baseline_results', fname, f'dip-centroid{centroid_weight}')
 if not os.path.exists(dip_baseline_dir):
@@ -122,13 +128,13 @@ def optimize(optimizer_type, parameters, closure, LR, num_iter):
 
 
 true_imgs, noisy_imgs, A, sigma, kernels =\
-    get_true_and_noisy_data(image_size, (None, None), num_imgs, 'm87', 8,
+    get_true_and_noisy_data(image_size, (None, None), num_imgs, fname, 8,
                             'closure-phase', 'learning', True, cphase_count='min',
                             envelope_params=None)
 if task != 'closure-phase':
     sigma = [x[np.newaxis,:,np.newaxis].type(dtype) for x in sigma[0]]
     true_imgs, noisy_imgs, A, _, kernels =\
-        get_true_and_noisy_data(image_size, sigma, num_imgs, 'm87', 8, task,
+        get_true_and_noisy_data(image_size, sigma, num_imgs, fname, 8, task,
                                 'learning', True, cphase_count='min',
                                 envelope_params=None)
     A = A.type(dtype)

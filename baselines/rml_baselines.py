@@ -1,3 +1,4 @@
+import argparse
 import os
 
 import ehtim as eh
@@ -91,7 +92,7 @@ def ehtim_baseline(dataset, img_idxs=None, stype='simple', alpha=1,
         print("--------------------------------------------")
 
 
-def main():
+def example():
     stypes = ['tv', 'tv2', 'simple']
     datasets = ['m87']
     for (dataset, s) in [(d, s) for d in datasets for s in stypes]:
@@ -99,4 +100,9 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='Deep Image Prior baseline')
+    parser.add_argument('--dataset', type=str, default='m87', help='dataset to use (default: m87)')
+    args = parser.parse_args()
+    stypes = ['tv', 'tv2', 'simple']
+    for s in stypes:
+        ehtim_baseline(args.dataset, stype=s, alpha=1, maxit=100)
