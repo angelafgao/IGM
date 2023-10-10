@@ -94,7 +94,7 @@ def time_angle_ring(npix):
     return cx, cy
 
 
-def time_angle(img_list):
+def time_angle(img_list, verbose=True):
     nz = 40
 
     npix = img_list[0].shape[0]
@@ -118,8 +118,8 @@ def time_angle(img_list):
         f = interpolate.interp2d(xx, yy, img_arr[idx], kind='linear')
         znew = f(cx, cy)
         flattened[idx] = np.diagonal(znew)
-        if idx % 10 == 0:
-            print(idx)
+        if idx % 10 == 0 and verbose:
+            print(f'frame {idx}')
 
     flattened_temp = np.copy(flattened)
     flattened_temp[flattened > img_arr.max()] = np.nan

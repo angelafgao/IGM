@@ -43,6 +43,15 @@ torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 np.random.seed(seed)
 random.seed(seed)
+
+# Parse command line arguments
+parser = argparse.ArgumentParser(description='AmbientGAN baseline')
+parser.add_argument('--task', type=str, default='closure-phase',
+                    help='inverse problem to solve (default: closure-phase)')
+parser.add_argument('--dataset', type=str, default='m87', help='dataset to use (default: m87)')
+parser.add_argument('--lr', type=float, default=5e-6, help='learning rate (default: 5e-6)')
+parser.add_argument('--epochs', type=int, default=20000, help='number of epochs (default: 20k)')
+args = parser.parse_args()
     
 # Define constants
 n_cpu = 8
@@ -64,8 +73,8 @@ Tensor = torch.cuda.FloatTensor if cuda else torch.FloatTensor
 num_imgs_total_bh = 60
 
 # lr = 0.000005#0.00000005#0.0000005
-lr = 5e-6
-out_dir = os.path.join('baseline_results', 'm87', f'ambientgan-lr{lr:.0e}')
+lr = args.lr
+out_dir = os.path.join('baseline_results', args.dataset, f'ambientgan-lr{lr:.0e}')
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
 
@@ -343,7 +352,7 @@ def get_data(task):
         batch_size = min(150, tot_num_imgs)
 
         true_imgs, noisy_imgs, A, sigma, kernels = \
-            get_true_and_noisy_data(img_size, (None, None), tot_num_imgs, 'm87', 8,
+            get_true_and_noisy_data(img_size, (None, None), tot_num_imgs, args.dataset, 8,
                                     'closure-phase', 'learning', True, cphase_count='min',
                                     envelope_params=None)
 
@@ -598,7 +607,7 @@ def amb_train(generator, discriminator, n_epochs, optimizer_G, optimizer_D, data
 ################################ BLACK HOLE RECONSTRUCTION
 
 # task = 'cs_real_noise'
-task = 'closure-phase'
+task = args.task
 b1 = 0.5
 b2 = 0.999
 
@@ -615,8 +624,11 @@ else:
     raise ValueError
 
 A, sigma, corr_data, tot_num_imgs, batch_size = get_data(task)
-sigma_amp, sigma_ph = sigma
-n_amp, n_ph = sigma_amp[0].shape[0], sigma_ph[0].shape[0]
+preprocess_dim = -1
+if task == 'closure-phase':
+    sigma_amp, sigma_ph = sigma
+    n_amp, n_ph = sigma_amp[0].shape[0], sigma_ph[0].shape[0]
+    preprocess_dim = n_amp + n_ph
 
 # Dataloaders for lossy datasets
 from torch.utils.data import TensorDataset
@@ -636,7 +648,7 @@ import utils.data_utils as data_utils
 #generator, G = model_utils.get_generator(latent_dim, img_size, 'deepdecoder')
 
 amb_mnist_G = Generator(latent_dim)
-amb_mnist_D = Critic(task=task, preprocess_dim=n_amp + n_ph)
+amb_mnist_D = Critic(task=task, preprocess_dim=preprocess_dim)
 print(amb_mnist_G)
 print(amb_mnist_D)
 amb_mnist_optim_G = torch.optim.Adam(amb_mnist_G.parameters(), lr=lr, betas=(b1, b2))
@@ -645,7 +657,7 @@ if cuda:
     amb_mnist_G.cuda()
     amb_mnist_D.cuda()
     
-n_epochs = 100000
+n_epochs = args.epochs
 # n_epochs = 1
 amb_mnist_loss = amb_train(amb_mnist_G, amb_mnist_D, n_epochs,
                            amb_mnist_optim_G, amb_mnist_optim_D, 
